@@ -1,0 +1,34 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts & coverage
+*.out
+*.test
+coverage.html
+profile.out
+
+# Go workspace
+go.work
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Certificates and keys generated locally
+certs/
+*.pem
+*.crt
+*.key
+!examples/cosign-test-keys/cosign.pub
+
+# Local test scratch
+scratch/
+tmp/
