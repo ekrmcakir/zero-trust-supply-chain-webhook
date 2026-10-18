@@ -1,0 +1,41 @@
+# Sample Zero-Trust Software Supply Chain Admission Webhook Configuration
+server:
+  port: 8443
+  metricsPort: 9090
+  tlsCertFile: "/etc/webhook/certs/tls.crt"
+  tlsKeyFile: "/etc/webhook/certs/tls.key"
+  healthCheckPath: "/healthz"
+  webhookPath: "/validate"
+
+policy:
+  mode: "enforce" # "enforce" or "audit"
+  trustedRegistries:
+    - "ghcr.io/ekrmcakir/*"
+    - "*.dkr.ecr.*.amazonaws.com/*"
+    - "gcr.io/google-containers/*"
+    - "registry.k8s.io/*"
+  disallowLatestTag: true
+  requireDigest: false
+  excludedNamespaces:
+    - "kube-system"
+    - "kube-public"
+    - "kube-node-lease"
+    - "zero-trust-system"
+  cosign:
+    enabled: true
+    publicKeyPath: "/etc/cosign/cosign.pub"
+    cacheTTL: 10m
+    cacheMaxEntries: 10000
+  attestations:
+    requireSBOM: true
+    requireScan: true
+    maxCriticalCVEs: 0
+    maxHighCVEs: 2
+    disallowUnscanned: true
+  podSecurity:
+    enabled: true
+    disallowPrivileged: true
+    requireNonRoot: true
+    requireReadOnlyRootFS: true
+    requireDropAllCaps: true
+    requireResourceLimits: false
