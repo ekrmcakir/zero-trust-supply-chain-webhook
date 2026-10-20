@@ -1,0 +1,264 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 100,
+      "title": "Zero-Trust Supply Chain Overview",
+      "type": "row"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "id": 1,
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "title": "Enforcement Mode",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "supply_chain_policy_enforcement_mode",
+          "legendFormat": "Mode (1=Enforce, 0=Audit)"
+        }
+      ]
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "reduceOptions": {
+          "calcs": ["sum"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "title": "Total Admitted Pods",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(supply_chain_admission_validations_total{verdict=\"admitted\"})",
+          "legendFormat": "Admitted"
+        }
+      ]
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "id": 3,
+      "options": {
+        "reduceOptions": {
+          "calcs": ["sum"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "title": "Blocked Security Violations",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(supply_chain_admission_validations_total{verdict=\"rejected\"})",
+          "legendFormat": "Blocked"
+        }
+      ]
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "purple", "value": null }
+            ]
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "id": 4,
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      },
+      "title": "Cosign Cache Hit Ratio",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "rate(supply_chain_cache_cosign_hits_total[5m]) / (rate(supply_chain_cache_cosign_hits_total[5m]) + rate(supply_chain_cache_cosign_misses_total[5m]))",
+          "legendFormat": "Hit Ratio"
+        }
+      ]
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "id": 101,
+      "title": "Validation Rates & Latency Trends",
+      "type": "row"
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "id": 5,
+      "title": "Validations by Verdict",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (verdict) (rate(supply_chain_admission_validations_total[1m]))",
+          "legendFormat": "{{verdict}}"
+        }
+      ]
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "id": 6,
+      "title": "Policy Violations by Category",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (violation_type) (rate(supply_chain_policy_violations_total[1m]))",
+          "legendFormat": "{{violation_type}}"
+        }
+      ]
+    },
+    {
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "id": 7,
+      "title": "Admission Webhook Latency (p50, p95, p99)",
+      "type": "timeseries",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(supply_chain_admission_validation_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50 Latency"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(supply_chain_admission_validation_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95 Latency"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(supply_chain_admission_validation_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99 Latency"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["zero-trust", "cosign", "supply-chain", "kubernetes", "security"],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Zero-Trust Software Supply Chain Security Dashboard",
+  "version": 1
+}
