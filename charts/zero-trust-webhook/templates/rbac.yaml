@@ -1,0 +1,28 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-zero-trust-webhook
+  labels:
+    app.kubernetes.io/name: zero-trust-webhook
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces", "pods", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["get", "list", "watch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-zero-trust-webhook
+  labels:
+    app.kubernetes.io/name: zero-trust-webhook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-zero-trust-webhook
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "zero-trust-webhook.serviceAccountName" . | default "zero-trust-webhook" }}
+    namespace: {{ .Release.Namespace }}

@@ -1,0 +1,18 @@
+apiVersion: v2
+name: zero-trust-webhook
+description: Production Helm chart for Zero-Trust Software Supply Chain Admission Webhook
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - zero-trust
+  - supply-chain
+  - cosign
+  - sigstore
+  - kyverno
+  - security
+  - admission-controller
+maintainers:
+  - name: Ekrem Cakir
+    email: ekrmcakir@gmail.com
+    url: https://github.com/ekrmcakir

@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-policy-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: zero-trust-webhook
+data:
+  config.yaml: |
+    server:
+      port: 8443
+      metricsPort: 9090
+      tlsCertFile: "/etc/webhook/certs/tls.crt"
+      tlsKeyFile: "/etc/webhook/certs/tls.key"
+      healthCheckPath: "/healthz"
+      webhookPath: "/validate"
+    policy:
+      mode: {{ .Values.policy.mode | quote }}
+      trustedRegistries:
+{{ toYaml .Values.policy.trustedRegistries | indent 8 }}
+      disallowLatestTag: {{ .Values.policy.disallowLatestTag }}
+      requireDigest: {{ .Values.policy.requireDigest }}
+      excludedNamespaces:
+{{ toYaml .Values.policy.excludedNamespaces | indent 8 }}
+      cosign:
+        enabled: {{ .Values.policy.cosign.enabled }}
+        publicKeyInline: |
+{{ .Values.policy.cosign.publicKeyInline | indent 10 }}
+        cacheTTL: {{ .Values.policy.cosign.cacheTTL | quote }}
+        cacheMaxEntries: {{ .Values.policy.cosign.cacheMaxEntries }}
+      attestations:
+        requireSBOM: {{ .Values.policy.attestations.requireSBOM }}
+        requireScan: {{ .Values.policy.attestations.requireScan }}
+        maxCriticalCVEs: {{ .Values.policy.attestations.maxCriticalCVEs }}
+        maxHighCVEs: {{ .Values.policy.attestations.maxHighCVEs }}
+        disallowUnscanned: {{ .Values.policy.attestations.disallowUnscanned }}
+      podSecurity:
+        enabled: {{ .Values.policy.podSecurity.enabled }}
+        disallowPrivileged: {{ .Values.policy.podSecurity.disallowPrivileged }}
+        requireNonRoot: {{ .Values.policy.podSecurity.requireNonRoot }}
+        requireReadOnlyRootFS: {{ .Values.policy.podSecurity.requireReadOnlyRootFS }}
+        requireDropAllCaps: {{ .Values.policy.podSecurity.requireDropAllCaps }}
+        requireResourceLimits: {{ .Values.policy.podSecurity.requireResourceLimits }}

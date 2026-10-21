@@ -1,0 +1,106 @@
+# Default values for zero-trust-webhook
+replicaCount: 2
+
+image:
+  repository: ghcr.io/ekrmcakir/zero-trust-supply-chain-webhook
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 443
+  targetPort: 8443
+  metricsPort: 9090
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+# Webhook TLS configuration
+tls:
+  cert: ""
+  key: ""
+  caBundle: ""
+
+# Zero-Trust Policy configuration
+policy:
+  mode: "enforce" # "enforce" or "audit"
+  trustedRegistries:
+    - "ghcr.io/ekrmcakir/*"
+    - "*.dkr.ecr.*.amazonaws.com/*"
+    - "gcr.io/google-containers/*"
+    - "registry.k8s.io/*"
+  disallowLatestTag: true
+  requireDigest: false
+  excludedNamespaces:
+    - "kube-system"
+    - "kube-public"
+    - "kube-node-lease"
+    - "zero-trust-system"
+  cosign:
+    enabled: true
+    publicKeyInline: |
+      -----BEGIN PUBLIC KEY-----
+      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5mTZLEZsD2t/1JoxFuOuRniZBNTN
+      czwLBBfBQALWZb8luIwliOrpagfEmz2Few8nOxbTDOye4x9xM6TYpF45EA==
+      -----END PUBLIC KEY-----
+    cacheTTL: "10m"
+    cacheMaxEntries: 10000
+  attestations:
+    requireSBOM: true
+    requireScan: true
+    maxCriticalCVEs: 0
+    maxHighCVEs: 2
+    disallowUnscanned: true
+  podSecurity:
+    enabled: true
+    disallowPrivileged: true
+    requireNonRoot: true
+    requireReadOnlyRootFS: true
+    requireDropAllCaps: true
+    requireResourceLimits: false
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+
+networkPolicy:
+  enabled: true

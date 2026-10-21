@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zero-trust-webhook
+  namespace: zero-trust-system
+  labels:
+    app.kubernetes.io/name: zero-trust-webhook
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: zero-trust-webhook
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: zero-trust-webhook
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: zero-trust-webhook
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: webhook
+          image: ghcr.io/ekrmcakir/zero-trust-supply-chain-webhook:1.0.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          args:
+            - "--config=/etc/webhook/config/config.yaml"
+            - "--tls-cert-file=/etc/webhook/certs/tls.crt"
+            - "--tls-key-file=/etc/webhook/certs/tls.key"
+            - "--port=8443"
+            - "--metrics-port=9090"
+          ports:
+            - name: https-webhook
+              containerPort: 8443
+              protocol: TCP
+            - name: http-metrics
+              containerPort: 9090
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+            - name: config
+              mountPath: /etc/webhook/config
+              readOnly: true
+      volumes:
+        - name: certs
+          secret:
+            secretName: zero-trust-webhook-tls
+        - name: config
+          configMap:
+            name: zero-trust-webhook-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zero-trust-webhook
+  namespace: zero-trust-system
+  labels:
+    app.kubernetes.io/name: zero-trust-webhook
+spec:
+  ports:
+    - name: https-webhook
+      port: 443
+      targetPort: 8443
+      protocol: TCP
+    - name: http-metrics
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: zero-trust-webhook

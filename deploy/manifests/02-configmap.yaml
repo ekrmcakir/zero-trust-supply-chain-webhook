@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zero-trust-webhook-config
+  namespace: zero-trust-system
+data:
+  config.yaml: |
+    server:
+      port: 8443
+      metricsPort: 9090
+      tlsCertFile: "/etc/webhook/certs/tls.crt"
+      tlsKeyFile: "/etc/webhook/certs/tls.key"
+      healthCheckPath: "/healthz"
+      webhookPath: "/validate"
+    policy:
+      mode: "enforce"
+      trustedRegistries:
+        - "ghcr.io/ekrmcakir/*"
+        - "*.dkr.ecr.*.amazonaws.com/*"
+        - "gcr.io/google-containers/*"
+        - "registry.k8s.io/*"
+      disallowLatestTag: true
+      requireDigest: false
+      excludedNamespaces:
+        - "kube-system"
+        - "kube-public"
+        - "kube-node-lease"
+        - "zero-trust-system"
+      cosign:
+        enabled: true
+        publicKeyInline: |
+          -----BEGIN PUBLIC KEY-----
+          MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5mTZLEZsD2t/1JoxFuOuRniZBNTN
+          czwLBBfBQALWZb8luIwliOrpagfEmz2Few8nOxbTDOye4x9xM6TYpF45EA==
+          -----END PUBLIC KEY-----
+        cacheTTL: "10m"
+        cacheMaxEntries: 10000
+      attestations:
+        requireSBOM: true
+        requireScan: true
+        maxCriticalCVEs: 0
+        maxHighCVEs: 2
+        disallowUnscanned: true
+      podSecurity:
+        enabled: true
+        disallowPrivileged: true
+        requireNonRoot: true
+        requireReadOnlyRootFS: true
+        requireDropAllCaps: true
+        requireResourceLimits: false

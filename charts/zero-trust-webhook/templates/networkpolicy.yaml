@@ -1,0 +1,40 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-webhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: zero-trust-webhook
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: zero-trust-webhook
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow admission webhook calls from kube-apiserver
+    - from: []
+      ports:
+        - protocol: TCP
+          port: 8443
+    # Allow Prometheus metrics scraping
+    - from: []
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow HTTPS egress to OCI Registries & Sigstore Rekor/Fulcio
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443
+{{- end }}
