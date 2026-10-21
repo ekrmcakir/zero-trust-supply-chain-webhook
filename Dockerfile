@@ -1,5 +1,5 @@
 # Multi-stage zero-trust build
-FROM golang:1.24-alpine AS builder
+FROM golang:alpine AS builder
 
 WORKDIR /workspace
 

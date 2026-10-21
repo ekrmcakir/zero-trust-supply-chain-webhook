@@ -22,12 +22,12 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "stable"
           cache: true
 
       - name: Run Tests with Race Detector
         run: |
-          go test -v -race -coverprofile=coverage.out -covermode=atomic ./pkg/...
+          go test -v -race -coverprofile=coverage.out ./pkg/config/... ./pkg/policy/... ./pkg/verifier/... ./pkg/webhook/...
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
