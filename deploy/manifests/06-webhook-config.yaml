@@ -18,6 +18,7 @@ webhooks:
         namespace: zero-trust-system
         path: "/validate"
         port: 443
+      caBundle: ""
     admissionReviewVersions: ["v1"]
     sideEffects: None
     timeoutSeconds: 10

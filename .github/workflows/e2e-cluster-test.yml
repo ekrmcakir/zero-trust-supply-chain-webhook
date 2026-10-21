@@ -56,7 +56,7 @@ jobs:
           
           # Inject CA bundle into webhook config
           CA_BUNDLE=$(cat certs/ca.crt | base64 | tr -d '\n')
-          sed -i "s|caBundle:.*|caBundle: ${CA_BUNDLE}|g" deploy/manifests/06-webhook-config.yaml || true
+          python3 -c "import sys; p='deploy/manifests/06-webhook-config.yaml'; s=open(p).read(); open(p,'w').write(s.replace('caBundle: \"\"', f'caBundle: \"{sys.argv[1]}\"'))" "${CA_BUNDLE}"
           kubectl apply -f deploy/manifests/06-webhook-config.yaml
 
           echo "==> Waiting for Webhook Deployment to become Ready..."
