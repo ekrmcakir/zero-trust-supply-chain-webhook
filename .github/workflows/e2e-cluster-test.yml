@@ -47,7 +47,6 @@ jobs:
           # Patch deployment to use local image
           kubectl apply -f deploy/manifests/04-deployment.yaml
           kubectl set image deployment/zero-trust-webhook webhook=zero-trust-webhook:local -n zero-trust-system
-          kubectl set image-pull-policy deployment/zero-trust-webhook webhook=Never -n zero-trust-system
           
           # Inject CA bundle into webhook config
           CA_BUNDLE=$(cat certs/ca.crt | base64 | tr -d '\n')
