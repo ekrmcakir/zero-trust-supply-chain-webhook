@@ -25,26 +25,26 @@ echo -e "${NC}"
 
 TMP_DIR="$(mktemp -d -t webhook-demo-XXXXXX)"
 cleanup() {
-    echo -e "\n${YELLOW}[TEMİZLİK] Geçici test kaynakları ve arka plan sunucusu kapatılıyor...${NC}"
+    echo -e "\n${YELLOW}[CLEANUP] Tearing down ephemeral demo server and resources...${NC}"
     if [ -n "${WEBHOOK_PID:-}" ] && kill -0 "${WEBHOOK_PID}" 2>/dev/null; then
         kill "${WEBHOOK_PID}" 2>/dev/null || true
         wait "${WEBHOOK_PID}" 2>/dev/null || true
     fi
     rm -rf "${TMP_DIR}"
-    echo -e "${GREEN}[TEMİZLİK] Başarıyla tamamlandı.${NC}"
+    echo -e "${GREEN}[CLEANUP] Done.${NC}"
 }
 trap cleanup EXIT INT TERM
 
 # 1. Compile webhook binary if not present
 if [ ! -f "bin/webhook" ]; then
-    echo -e "${BLUE}[ADIM 1/5] Go binary derleniyor (bin/webhook)...${NC}"
+    echo -e "${BLUE}[STEP 1/5] Compiling webhook daemon binary (bin/webhook)...${NC}"
     /opt/homebrew/bin/go build -o bin/webhook ./cmd/webhook
 else
-    echo -e "${GREEN}[ADIM 1/5] Webhook binary 'bin/webhook' hazır.${NC}"
+    echo -e "${GREEN}[STEP 1/5] Webhook binary 'bin/webhook' is ready.${NC}"
 fi
 
 # 2. Generate local TLS certificates for localhost
-echo -e "${BLUE}[ADIM 2/5] Webhook HTTPS iletişimi için yerel TLS sertifikaları üretiliyor...${NC}"
+echo -e "${BLUE}[STEP 2/5] Generating ephemeral TLS certificates with SAN for localhost...${NC}"
 openssl req -x509 -newkey rsa:2048 -nodes \
     -keyout "${TMP_DIR}/tls.key" \
     -out "${TMP_DIR}/tls.crt" \
@@ -91,7 +91,7 @@ policy:
 EOF
 
 # 4. Start Webhook Daemon in background
-echo -e "${BLUE}[ADIM 3/5] Webhook HTTPS sunucusu başlatılıyor (:8443) & Prometheus Metrikleri (:9090)...${NC}"
+echo -e "${BLUE}[STEP 3/5] Starting Webhook TLS server (:8443) and Prometheus metrics (:9090)...${NC}"
 ./bin/webhook -config "${TMP_DIR}/config.yaml" > "${TMP_DIR}/webhook.log" 2>&1 &
 WEBHOOK_PID=$!
 
@@ -103,7 +103,7 @@ for i in {1..20}; do
     sleep 0.2
 done
 
-echo -e "${GREEN}[OK] Webhook daemon aktif (PID: ${WEBHOOK_PID}). Sağlık Kontrolü (healthz): OK${NC}\n"
+echo -e "${GREEN}[OK] Webhook daemon active (PID: ${WEBHOOK_PID}). Healthcheck (/healthz): OK${NC}\n"
 
 # Helper function to send admission reviews
 send_review() {
@@ -113,7 +113,7 @@ send_review() {
     local security_context="$4"
 
     echo -e "${BOLD}----------------------------------------------------------------------${NC}"
-    echo -e "${YELLOW}>> CANLI TEST: ${title}${NC}"
+    echo -e "${YELLOW}>> TESTING SCENARIO: ${title}${NC}"
 
     local payload=$(cat <<EOF
 {
@@ -153,56 +153,56 @@ EOF
     local message=$(echo "${response}" | grep -o '"message":[^}]*' | sed 's/"message":"//;s/"//g')
 
     if [ "${allowed}" = "false" ]; then
-        echo -e "   [SONUÇ]: ${RED}${BOLD}BLOCKED (403 Forbidden - ENGELLENDİ)${NC}"
-        echo -e "   [NEDEN]: ${RED}${message}${NC}"
+        echo -e "   [VERDICT]: ${RED}${BOLD}BLOCKED (403 Forbidden - Rejected)${NC}"
+        echo -e "   [REASON]:  ${RED}${message}${NC}"
     else
-        echo -e "   [SONUÇ]: ${GREEN}${BOLD}ALLOWED (200 OK - KÜMEYE KABUL EDİLDİ)${NC}"
-        echo -e "   [DURUM]: Pod tüm Zero-Trust ve Pod Security kurallarını başarıyla geçti."
+        echo -e "   [VERDICT]: ${GREEN}${BOLD}ALLOWED (200 OK - Admitted)${NC}"
+        echo -e "   [STATUS]:  Pod satisfies all Zero-Trust supply chain and Pod Security policies."
     fi
 }
 
-echo -e "${CYAN}${BOLD}[ADIM 4/5] Kubernetes Admission Denetimleri Gerçek Zamanlı Test Ediliyor...${NC}\n"
+echo -e "${CYAN}${BOLD}[STEP 4/5] Executing Real-Time Admission Policy Validations...${NC}\n"
 
 # Test 1: Untrusted Registry
-send_review "1. Yetkisiz/Güvensiz Kaynaktan İmaj İndirme (Untrusted Registry)" \
+send_review "1. Untrusted Container Registry Image" \
     "production" \
     '{"name": "malicious-app", "image": "docker.io/evilcorp/crypto-miner:v1.0.0", "securityContext": {"privileged": false, "runAsNonRoot": true, "readOnlyRootFilesystem": true, "capabilities": {"drop": ["ALL"]}}}' \
     ''
 
 # Test 2: Mutable :latest Tag
-send_review "2. Değişken ':latest' Etiketi ile Dağıtım (Mutable Tag)" \
+send_review "2. Mutable ':latest' Image Tag" \
     "production" \
     '{"name": "unstable-app", "image": "ghcr.io/ekrmcakir/web-service:latest", "securityContext": {"privileged": false, "runAsNonRoot": true, "readOnlyRootFilesystem": true, "capabilities": {"drop": ["ALL"]}}}' \
     ''
 
 # Test 3: Root & Privileged Security Violation
-send_review "3. Privileged / Root Yetkili Container Saldırısı (Pod Security Violation)" \
+send_review "3. Privileged Container & Root User (Pod Security Standard Violation)" \
     "production" \
     '{"name": "root-app", "image": "ghcr.io/ekrmcakir/web-service:v1.2.0", "securityContext": {"privileged": true, "runAsNonRoot": false}}' \
     ''
 
 # Test 4: Unsigned Image from Trusted Registry
-send_review "4. İmzalanmamış / Doğrulanmamış İmaj (Unsigned Cosign Artifact)" \
+send_review "4. Unsigned Image Artifact (Missing Cosign Signature)" \
     "production" \
     '{"name": "unsigned-app", "image": "ghcr.io/ekrmcakir/unsigned-service:v1.0.0", "securityContext": {"privileged": false, "runAsNonRoot": true, "readOnlyRootFilesystem": true, "capabilities": {"drop": ["ALL"]}}}' \
     ''
 
 # Test 5: Fully Compliant, Signed, Hardened Pod
-send_review "5. Sigstore/Cosign İmzalı, Sertleştirilmiş Prodüksiyon Podu (Valid & Signed)" \
+send_review "5. Sigstore/Cosign Verified, Hardened Production Pod (Compliant)" \
     "production" \
     '{"name": "secure-payment-service", "image": "ghcr.io/ekrmcakir/signed-payment-api:v1.0.0", "securityContext": {"privileged": false, "runAsNonRoot": true, "readOnlyRootFilesystem": true, "capabilities": {"drop": ["ALL"]}}}' \
     ''
 
 # Test 6: Whitelisted / Excluded Namespace Workload
-send_review "6. Kural Dışı / Sistem Namespace İzni (Whitelisted Namespace: kube-system)" \
+send_review "6. Whitelisted System Namespace (kube-system Exemption)" \
     "kube-system" \
     '{"name": "coredns", "image": "registry.k8s.io/coredns/coredns:v1.11.1"}' \
     ''
 
 echo -e "\n${BOLD}----------------------------------------------------------------------${NC}"
-echo -e "${CYAN}${BOLD}[ADIM 5/5] Canlı Prometheus Metrikleri (http://127.0.0.1:9090/metrics):${NC}"
+echo -e "${CYAN}${BOLD}[STEP 5/5] Real-Time Prometheus Metrics Output (http://127.0.0.1:9090/metrics):${NC}"
 curl -s "http://127.0.0.1:9090/metrics" | grep -E '^supply_chain_' | while read -r line; do
     echo -e "   ${YELLOW}${line}${NC}"
 done
 
-echo -e "\n${GREEN}${BOLD}Tüm senaryolar başarıyla simüle edildi ve Zero-Trust Webhook'un çalıştığı doğrulandı!${NC}"
+echo -e "\n${GREEN}${BOLD}All admission scenarios successfully simulated and verified!${NC}"
