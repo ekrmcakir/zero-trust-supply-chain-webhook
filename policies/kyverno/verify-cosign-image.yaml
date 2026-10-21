@@ -1,0 +1,41 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-cosign-image
+  annotations:
+    policies.kyverno.io/title: Verify Cosign Image Signatures
+    policies.kyverno.io/category: Software Supply Chain Security
+    policies.kyverno.io/severity: critical
+    policies.kyverno.io/description: >-
+      Cryptographically verifies that all container images deployed to the cluster
+      are signed with the trusted enterprise Cosign public key before admission.
+spec:
+  validationFailureAction: Enforce
+  webhookTimeoutSeconds: 30
+  rules:
+    - name: verify-signature-rule
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - "!kube-system"
+                - "!kube-public"
+                - "!zero-trust-system"
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/ekrmcakir/*"
+            - "*.dkr.ecr.*.amazonaws.com/*"
+          attestors:
+            - entries:
+                - keys:
+                    publicKeys: |
+                      -----BEGIN PUBLIC KEY-----
+                      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVf2l+hPZ+PZ+PZ+PZ+PZ+PZ+PZ+P
+                      Z+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ
+                      +w==
+                      -----END PUBLIC KEY-----
+          mutateDigest: true
+          verifyDigest: true
+          required: true

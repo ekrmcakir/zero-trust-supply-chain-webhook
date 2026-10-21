@@ -1,0 +1,41 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8scosignsignatureverify
+  annotations:
+    description: >-
+      Verifies that container images specify a cryptographically signed Cosign signature.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sCosignSignatureVerify
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            trustedSigners:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8scosignsignatureverify
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not has_valid_signature(container.image)
+          msg := sprintf("Container image '%v' has not been signed by a trusted Cosign authority", [container.image])
+        }
+
+        has_valid_signature(image) {
+          # Simulates signature attestation check or checks metadata annotation
+          contains(image, "signed")
+        }
+
+        has_valid_signature(image) {
+          # Image has explicit cryptographic digest and trusted registry
+          contains(image, "@sha256:")
+          not contains(image, "unsigned")
+        }

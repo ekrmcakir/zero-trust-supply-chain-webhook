@@ -1,0 +1,45 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-trusted-registries
+  annotations:
+    policies.kyverno.io/title: Restrict Trusted Registries & Disallow Latest Tag
+    policies.kyverno.io/category: Supply Chain Hardening
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Ensures container images only originate from approved registries (GHCR, ECR)
+      and strictly disallows mutable ':latest' tags.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: validate-registry
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - "!kube-system"
+                - "!zero-trust-system"
+      validate:
+        message: "Images must originate from approved registries (ghcr.io/ekrmcakir/* or *.dkr.ecr.*.amazonaws.com/*)."
+        pattern:
+          spec:
+            containers:
+              - image: "ghcr.io/ekrmcakir/* | *.dkr.ecr.*.amazonaws.com/*"
+    - name: disallow-latest-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - "!kube-system"
+                - "!zero-trust-system"
+      validate:
+        message: "Using ':latest' tag is forbidden in production clusters. Specify an immutable tag or digest."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"

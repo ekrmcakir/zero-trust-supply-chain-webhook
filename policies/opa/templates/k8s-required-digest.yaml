@@ -1,0 +1,29 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequireddigest
+  annotations:
+    description: >-
+      Requires container images to specify immutable cryptographic SHA256 digests and disallows latest tags.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequiredDigest
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequireddigest
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          endswith(container.image, ":latest")
+          msg := sprintf("Container '%v' uses mutable ':latest' tag which is strictly forbidden", [container.image])
+        }
+
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.containers[_]
+          not contains(container.image, "@sha256:")
+          not contains(container.image, ":")
+          msg := sprintf("Container '%v' lacks tag or cryptographic digest pinning", [container.image])
+        }

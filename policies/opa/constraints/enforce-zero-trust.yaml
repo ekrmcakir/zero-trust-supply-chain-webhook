@@ -1,0 +1,50 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sCosignSignatureVerify
+metadata:
+  name: enforce-cosign-signatures
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    excludedNamespaces:
+      - kube-system
+      - kube-public
+      - zero-trust-system
+  parameters:
+    trustedSigners:
+      - "github.com/ekrmcakir/zero-trust-supply-chain-webhook"
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sTrustedRegistries
+metadata:
+  name: enforce-trusted-registries
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    excludedNamespaces:
+      - kube-system
+      - zero-trust-system
+  parameters:
+    registries:
+      - "ghcr.io/ekrmcakir/"
+      - "123456789012.dkr.ecr.eu-west-1.amazonaws.com/"
+      - "gcr.io/google-containers/"
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredDigest
+metadata:
+  name: enforce-digest-and-immutable-tags
+spec:
+  enforcementAction: deny
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    excludedNamespaces:
+      - kube-system
+      - zero-trust-system

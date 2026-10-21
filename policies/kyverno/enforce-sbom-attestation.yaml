@@ -1,0 +1,43 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: enforce-sbom-attestation
+  annotations:
+    policies.kyverno.io/title: Enforce SBOM and Vulnerability Attestations
+    policies.kyverno.io/category: Software Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Mandates that every image has an attached in-toto SBOM attestation and
+      contains 0 Critical CVEs from vulnerability scanning.
+spec:
+  validationFailureAction: Enforce
+  webhookTimeoutSeconds: 30
+  rules:
+    - name: verify-attestation-rule
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - "!kube-system"
+                - "!zero-trust-system"
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/ekrmcakir/*"
+          attestations:
+            - predicateType: "https://in-toto.io/attestation/vuln/v0.1"
+              attestors:
+                - entries:
+                    - keys:
+                        publicKeys: |
+                          -----BEGIN PUBLIC KEY-----
+                          MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVf2l+hPZ+PZ+PZ+PZ+PZ+PZ+PZ+P
+                          Z+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ+PZ
+                          +w==
+                          -----END PUBLIC KEY-----
+              conditions:
+                - all:
+                    - key: "{{ scan.critical }}"
+                      operator: Equals
+                      value: 0
