@@ -115,10 +115,29 @@ For comprehensive sequence diagrams and deep architectural specifications, see [
 
 ---
 
-## ⚡ Quickstart: KinD Cluster E2E Demo
+## ⚡ Quickstart
 
-### 1. Prerequisites
-* Go 1.22+ (`go version`)
+### 🎮 Option A: Zero-Cluster Local Simulation & Web Dashboard
+You can evaluate the full Zero-Trust admission pipeline, live Prometheus telemetry, and the interactive web console directly on your machine without needing a running Kubernetes cluster:
+
+```bash
+# 1. Run interactive CLI simulation (tests 6 real admission attacks)
+./scripts/demo-live.sh
+
+# 2. Start persistent Webhook Daemon & open the Web Console & Grafana preview
+./scripts/start-server.sh
+open http://localhost:9090
+
+# 3. Inspect interactive code test coverage heat map
+open coverage.html
+```
+
+---
+
+### ☸️ Option B: Real KinD Cluster E2E Deployment
+
+#### 1. Prerequisites
+* Go 1.24+ (`go version`)
 * Docker & [KinD](https://kind.sigs.k8s.io/)
 * `kubectl` and `openssl`
 
