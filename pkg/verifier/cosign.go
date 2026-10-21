@@ -51,20 +51,22 @@ func NewCosignVerifier(cfg *config.CosignConfig, cache *VerificationCache) (*Cos
 	}
 
 	if cfg.Enabled {
-		if cfg.PublicKeyPath != "" {
+		if cfg.PublicKeyInline != "" {
+			pubKey, err := parsePublicKeyPEM([]byte(cfg.PublicKeyInline))
+			if err != nil {
+				fmt.Printf("[WARN] Failed to parse inline cosign public key: %v\n", err)
+			} else {
+				v.publicKey = pubKey
+			}
+		}
+
+		if v.publicKey == nil && cfg.PublicKeyPath != "" {
 			pubKey, err := loadPublicKeyFromFile(cfg.PublicKeyPath)
 			if err != nil {
-				// Don't fail hard if key path doesn't exist yet at startup (e.g. in test), but save error
 				fmt.Printf("[WARN] Failed to load cosign public key from %s: %v\n", cfg.PublicKeyPath, err)
 			} else {
 				v.publicKey = pubKey
 			}
-		} else if cfg.PublicKeyInline != "" {
-			pubKey, err := parsePublicKeyPEM([]byte(cfg.PublicKeyInline))
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse inline cosign public key: %w", err)
-			}
-			v.publicKey = pubKey
 		}
 	}
 

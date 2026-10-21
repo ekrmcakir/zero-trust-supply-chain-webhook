@@ -97,8 +97,11 @@ func DefaultConfig() *Config {
 				"zero-trust-system",
 			},
 			Cosign: CosignConfig{
-				Enabled:         true,
-				PublicKeyPath:   "/etc/cosign/cosign.pub",
+				Enabled: true,
+				PublicKeyInline: `-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5mTZLEZsD2t/1JoxFuOuRniZBNTN
+czwLBBfBQALWZb8luIwliOrpagfEmz2Few8nOxbTDOye4x9xM6TYpF45EA==
+-----END PUBLIC KEY-----`,
 				CacheTTL:        10 * time.Minute,
 				CacheMaxEntries: 10000,
 			},
