@@ -19,6 +19,7 @@ import (
 
 	"github.com/ekrmcakir/zero-trust-supply-chain-webhook/pkg/common"
 	"github.com/ekrmcakir/zero-trust-supply-chain-webhook/pkg/config"
+	"github.com/ekrmcakir/zero-trust-supply-chain-webhook/pkg/metrics"
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
@@ -93,8 +94,10 @@ func (v *CosignVerifier) Verify(imageRef string) common.VerificationResult {
 	// 1. Check in-memory cache first
 	if v.cache != nil {
 		if cached, found := v.cache.Get(imageRef); found {
+			metrics.CosignCacheHits.Inc()
 			return cached
 		}
+		metrics.CosignCacheMisses.Inc()
 	}
 
 	// 2. Parse reference

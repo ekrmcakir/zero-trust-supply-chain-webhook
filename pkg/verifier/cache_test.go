@@ -58,3 +58,25 @@ func TestVerificationCache_Concurrency(t *testing.T) {
 	assert.True(t, hits > 0)
 	assert.Equal(t, 1, size)
 }
+
+func TestVerificationCache_EvictionAndClear(t *testing.T) {
+	// Test default parameters when <= 0
+	defCache := NewVerificationCache(0, 0)
+	assert.NotNil(t, defCache)
+
+	// Test capacity eviction
+	cache := NewVerificationCache(1*time.Minute, 2)
+	cache.Set("img1", common.VerificationResult{Allowed: true, Image: "img1"})
+	cache.Set("img2", common.VerificationResult{Allowed: true, Image: "img2"})
+	// 3rd item triggers eviction of an existing item
+	cache.Set("img3", common.VerificationResult{Allowed: true, Image: "img3"})
+
+	_, _, size := cache.Stats()
+	assert.LessOrEqual(t, size, 2)
+
+	// Test Clear
+	cache.Clear()
+	_, _, sizeAfterClear := cache.Stats()
+	assert.Equal(t, 0, sizeAfterClear)
+}
+

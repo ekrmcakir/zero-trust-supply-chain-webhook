@@ -68,7 +68,7 @@ func (v *PodSecurityValidator) ValidatePod(podSpec *corev1.PodSpec) []common.Pod
 			if sec == nil || sec.ReadOnlyRootFilesystem == nil || !*sec.ReadOnlyRootFilesystem {
 				violations = append(violations, common.PodSecurityViolation{
 					ContainerName: c.Name,
-					Reason:        common.ReasonRootUserDisallowed,
+					Reason:        common.ReasonReadOnlyRootFSRequired,
 					Message:       fmt.Sprintf("Container '%s' must enforce readOnlyRootFilesystem: true", c.Name),
 				})
 			}
@@ -88,7 +88,7 @@ func (v *PodSecurityValidator) ValidatePod(podSpec *corev1.PodSpec) []common.Pod
 			if !hasDropAll {
 				violations = append(violations, common.PodSecurityViolation{
 					ContainerName: c.Name,
-					Reason:        common.ReasonPrivilegedContainer,
+					Reason:        common.ReasonCapabilitiesNotDropped,
 					Message:       fmt.Sprintf("Container '%s' must drop all Linux capabilities (capabilities.drop: ['ALL'])", c.Name),
 				})
 			}

@@ -26,9 +26,11 @@ const (
 	ReasonInvalidSignature   ValidationReason = "COSIGN_SIGNATURE_INVALID"
 	ReasonMissingAttestation ValidationReason = "ATTESTATION_MISSING"
 	ReasonCVEThresholdExceed ValidationReason = "CVE_SEVERITY_THRESHOLD_EXCEEDED"
-	ReasonPrivilegedContainer ValidationReason = "POD_SECURITY_PRIVILEGED_DISALLOWED"
-	ReasonRootUserDisallowed ValidationReason = "POD_SECURITY_ROOT_USER_DISALLOWED"
-	ReasonMissingLimits      ValidationReason = "POD_SECURITY_MISSING_RESOURCE_LIMITS"
+	ReasonPrivilegedContainer       ValidationReason = "POD_SECURITY_PRIVILEGED_DISALLOWED"
+	ReasonRootUserDisallowed        ValidationReason = "POD_SECURITY_ROOT_USER_DISALLOWED"
+	ReasonReadOnlyRootFSRequired    ValidationReason = "POD_SECURITY_READONLY_ROOTFS_REQUIRED"
+	ReasonCapabilitiesNotDropped    ValidationReason = "POD_SECURITY_CAPABILITIES_NOT_DROPPED"
+	ReasonMissingLimits             ValidationReason = "POD_SECURITY_MISSING_RESOURCE_LIMITS"
 )
 
 // VerificationResult holds the fine-grained outcome of a supply-chain check

@@ -46,9 +46,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Protect against oversized payloads (max 1MB for admission review)
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to read request body: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("failed to read request body (max 1MB allowed): %v", err), http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()

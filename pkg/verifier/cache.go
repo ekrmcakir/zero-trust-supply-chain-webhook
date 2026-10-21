@@ -2,6 +2,7 @@ package verifier
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ekrmcakir/zero-trust-supply-chain-webhook/pkg/common"
@@ -45,9 +46,7 @@ func (c *VerificationCache) Get(key string) (common.VerificationResult, bool) {
 	c.mu.RUnlock()
 
 	if !exists {
-		c.mu.Lock()
-		c.misses++
-		c.mu.Unlock()
+		atomic.AddUint64(&c.misses, 1)
 		return common.VerificationResult{}, false
 	}
 
@@ -55,14 +54,12 @@ func (c *VerificationCache) Get(key string) (common.VerificationResult, bool) {
 		// Expired entry
 		c.mu.Lock()
 		delete(c.entries, key)
-		c.misses++
 		c.mu.Unlock()
+		atomic.AddUint64(&c.misses, 1)
 		return common.VerificationResult{}, false
 	}
 
-	c.mu.Lock()
-	c.hits++
-	c.mu.Unlock()
+	atomic.AddUint64(&c.hits, 1)
 	return entry.result, true
 }
 
@@ -100,8 +97,9 @@ func (c *VerificationCache) Set(key string, result common.VerificationResult) {
 // Stats returns the cache hit and miss count
 func (c *VerificationCache) Stats() (hits uint64, misses uint64, size int) {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.hits, c.misses, len(c.entries)
+	size = len(c.entries)
+	c.mu.RUnlock()
+	return atomic.LoadUint64(&c.hits), atomic.LoadUint64(&c.misses), size
 }
 
 // Clear flushes all entries from the cache
