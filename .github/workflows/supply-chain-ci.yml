@@ -1,0 +1,118 @@
+name: Zero-Trust Supply Chain CI & Signing
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write # Required for Cosign keyless signing with OIDC
+
+jobs:
+  test:
+    name: Unit Tests & Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Run Tests with Race Detector
+        run: |
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./pkg/...
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out
+
+  build-and-sign:
+    name: Build, SBOM, Scan & Cosign Sign
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install Cosign (Sigstore)
+        uses: sigstore/cosign-installer@v3.8.0
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Build and Push Docker Image
+        id: build-push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Generate SBOM with Syft
+        if: github.event_name != 'pull_request'
+        uses: anchore/sbom-action@v0.17.9
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}
+          format: spdx-json
+          output-file: ./sbom.spdx.json
+
+      - name: Scan Image for CVE Vulnerabilities (Trivy)
+        if: github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}
+          format: 'cosign-vuln'
+          output: 'vuln.attestation.json'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Sign Container Image (Keyless with Sigstore Fulcio/Rekor)
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "==> Signing image digest with Cosign OIDC identity..."
+          cosign sign --yes "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}"
+
+      - name: Attach SBOM Attestation to OCI Artifact
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "==> Attaching SPDX SBOM attestation to image..."
+          cosign attest --yes --predicate ./sbom.spdx.json --type spdxjson "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}"
+
+      - name: Verify Image Signature & Transparency Log
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "==> Verifying signature against Rekor transparency log..."
+          cosign verify \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/.*" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-push.outputs.digest }}"

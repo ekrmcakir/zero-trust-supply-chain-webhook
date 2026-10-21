@@ -1,0 +1,99 @@
+name: KinD E2E Admission Webhook Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  kind-e2e:
+    name: Kubernetes KinD E2E Enforcement Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Build Webhook Binary & Local Docker Image
+        run: |
+          docker build -t zero-trust-webhook:local .
+
+      - name: Create KinD Cluster
+        uses: helm/kind-action@v1.12.0
+        with:
+          cluster_name: kind-zero-trust
+          config: |
+            kind: Cluster
+            apiVersion: kind.x-k8s.io/v1alpha4
+            nodes:
+              - role: control-plane
+
+      - name: Load Webhook Image into KinD
+        run: |
+          kind load docker-image zero-trust-webhook:local --name kind-zero-trust
+
+      - name: Generate TLS Certificates
+        run: |
+          bash scripts/generate-certs.sh certs zero-trust-system zero-trust-webhook
+
+      - name: Deploy Webhook to KinD Cluster
+        run: |
+          kubectl apply -f deploy/manifests/00-namespace.yaml
+          kubectl apply -f deploy/manifests/01-rbac.yaml
+          kubectl apply -f deploy/manifests/02-configmap.yaml
+          kubectl create secret tls zero-trust-webhook-tls --cert=certs/tls.crt --key=certs/tls.key -n zero-trust-system
+          
+          # Patch deployment to use local image
+          kubectl apply -f deploy/manifests/04-deployment.yaml
+          kubectl set image deployment/zero-trust-webhook webhook=zero-trust-webhook:local -n zero-trust-system
+          kubectl set image-pull-policy deployment/zero-trust-webhook webhook=Never -n zero-trust-system
+          
+          # Inject CA bundle into webhook config
+          CA_BUNDLE=$(cat certs/ca.crt | base64 | tr -d '\n')
+          sed -i "s|caBundle:.*|caBundle: ${CA_BUNDLE}|g" deploy/manifests/06-webhook-config.yaml || true
+          kubectl apply -f deploy/manifests/06-webhook-config.yaml
+
+          echo "==> Waiting for Webhook Deployment to become Ready..."
+          kubectl rollout status deployment/zero-trust-webhook -n zero-trust-system --timeout=90s
+
+      - name: Assert Compliant Pod is Admitted
+        run: |
+          echo "==> Testing admission of valid, compliant, signed pod..."
+          kubectl apply -f examples/valid-signed-production-pod.yaml
+          kubectl get pod payment-service-compliant
+
+      - name: Assert Unsigned Pod is Blocked
+        run: |
+          echo "==> Testing rejection of unsigned pod..."
+          if kubectl apply -f examples/invalid-unsigned-pod.yaml; then
+            echo "ERROR: Expected unsigned pod to be blocked, but was admitted!"
+            exit 1
+          else
+            echo "SUCCESS: Unsigned pod was correctly blocked by admission webhook."
+          fi
+
+      - name: Assert Mutable Latest Tag is Blocked
+        run: |
+          echo "==> Testing rejection of mutable :latest tag..."
+          if kubectl apply -f examples/invalid-latest-tag-pod.yaml; then
+            echo "ERROR: Expected mutable tag to be blocked, but was admitted!"
+            exit 1
+          else
+            echo "SUCCESS: Mutable :latest tag was correctly blocked."
+          fi
+
+      - name: Assert Untrusted Registry is Blocked
+        run: |
+          echo "==> Testing rejection of untrusted registry..."
+          if kubectl apply -f examples/invalid-untrusted-registry-pod.yaml; then
+            echo "ERROR: Expected untrusted registry to be blocked, but was admitted!"
+            exit 1
+          else
+            echo "SUCCESS: Untrusted registry was correctly blocked."
+          fi
