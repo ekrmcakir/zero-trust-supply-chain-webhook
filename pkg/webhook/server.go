@@ -67,14 +67,19 @@ func (s *Server) Start(ctx context.Context) error {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Metrics mux
+	// Metrics & Visual Dashboard mux
 	metricsMux := http.NewServeMux()
 	metricsMux.Handle("/metrics", promhttp.Handler())
+	metricsMux.HandleFunc("/", s.serveDashboard)
+	metricsMux.HandleFunc("/dashboard", s.serveDashboard)
+	if s.handler != nil {
+		metricsMux.Handle("/api/validate", s.handler)
+	}
 	s.metricsServer = &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.cfg.MetricsPort),
 		Handler:      metricsMux,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
 
 	errChan := make(chan error, 2)
